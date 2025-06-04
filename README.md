@@ -43,6 +43,12 @@ To compile the program, we are using the following environments which could be e
 ```
 	source /cvmfs/sft.cern.ch/lcg/views/LCG_97rc4python3/x86_64-centos7-gcc9-opt/setup.sh
 ```
+
+in lxplus.cern.ch:
+```
+	source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc12-opt/setup.sh 
+```
+
 ### YAML
 YAML is needed for this project.
 

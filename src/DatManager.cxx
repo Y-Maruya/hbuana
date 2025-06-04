@@ -23,9 +23,10 @@ int DatManager::CatchEventBag(ifstream &f_in, vector<int> &buffer_v, long &chere
 		// cout<<hex<<buffer<<" "<<endl;
 		//if(int_tmp>4 && buffer_v[int_tmp-2] == 0xfe && buffer_v[int_tmp-1] == 0xee && buffer_v[int_tmp-4] == 0xfe && buffer_v[int_tmp-3] == 0xee) b_end=1;
 		if(int_tmp>=4 && 
-		   buffer_v[int_tmp-2] == 0xfe && buffer_v[int_tmp-1] == 0xdd && 
-		   buffer_v[int_tmp-4] == 0xfe && buffer_v[int_tmp-3] == 0xdd){
+		   buffer_v[int_tmp-2] == 0xfb && buffer_v[int_tmp-1] == 0xee && 
+		   buffer_v[int_tmp-4] == 0xfb && buffer_v[int_tmp-3] == 0xee){
 			b_end=1;
+			buffer_v.erase(buffer_v.end()-4,buffer_v.end());
 		   }
 		if (f_in.eof()){
 			cout<<"CatchEventBag:readover "<<endl;
@@ -324,7 +325,7 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 		Bag_No++;
 		b_Event=0;
 		b_chipbuffer=Chipbuffer_empty();//just in case
-		cout <<dec<<Bag_No<<" CatchEventBag size "<<_EventBuffer_v.size()<<" cherenkov_counter "<<cherenkov_counter<<endl;
+		// cout <<dec<<Bag_No<<" CatchEventBag size "<<_EventBuffer_v.size()<<" cherenkov_counter "<<cherenkov_counter<<endl;
 		while(_EventBuffer_v.size()>74){    
 			CatchSPIROCBag(_EventBuffer_v,_buffer_v,layer_id,cycleID,triggerID);
 			// if(triggerID==last_trigID){
