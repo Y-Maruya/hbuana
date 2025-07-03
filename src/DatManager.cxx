@@ -17,17 +17,23 @@ int DatManager::CatchEventBag(ifstream &f_in, vector<int> &buffer_v, long &chere
 		if(buffer_v.size()>4) buffer_v.erase(buffer_v.begin(),buffer_v.begin()+buffer_v.size()-4);
 		if(buffer_v.size()==4 && buffer_v[0]==0xfb && buffer_v[1]==0xee && buffer_v[2]==0xfb && buffer_v[3]==0xee) b_begin=1;
 	}
+	// buffer_v.push_back(0xfb);
+	// buffer_v.push_back(0xee);
+	// buffer_v.push_back(0xfb);
+	// buffer_v.push_back(0xee);
 	while(!b_end && f_in.read((char*)(&buffer),1)){
 		buffer_v.push_back(buffer);
 		int_tmp = buffer_v.size();
 		// cout<<hex<<buffer<<" "<<endl;
-		//if(int_tmp>4 && buffer_v[int_tmp-2] == 0xfe && buffer_v[int_tmp-1] == 0xee && buffer_v[int_tmp-4] == 0xfe && buffer_v[int_tmp-3] == 0xee) b_end=1;
+		if(int_tmp>4 && buffer_v[int_tmp-2] == 0xfe && buffer_v[int_tmp-1] == 0xdd && buffer_v[int_tmp-4] == 0xfe && buffer_v[int_tmp-3] == 0xdd) b_end=1;
 		if(int_tmp>=4 && 
 		   buffer_v[int_tmp-2] == 0xfb && buffer_v[int_tmp-1] == 0xee && 
 		   buffer_v[int_tmp-4] == 0xfb && buffer_v[int_tmp-3] == 0xee){
-			b_end=1;
-			buffer_v.erase(buffer_v.end()-4,buffer_v.end());
+			std::cout<< "CatchEventBag:found abnormal end marker, size: " << int_tmp << std::endl;
 		   }
+		// 	b_end=1;
+		// 	buffer_v.erase(buffer_v.end()-4,buffer_v.end());
+		//    }
 		if (f_in.eof()){
 			cout<<"CatchEventBag:readover "<<endl;
 			// buffer_v.clear();
@@ -38,10 +44,11 @@ int DatManager::CatchEventBag(ifstream &f_in, vector<int> &buffer_v, long &chere
 			return 0;
 		}
 	}
+
 	if (b_end==0){
 		cout<<"CatchEventBag:abnormal end "<<endl;
 		// buffer_v.clear();
-		return 0;
+		// return 0;
 	}
 	int_tmp=buffer_v.size();
 	cherenkov_counter=buffer_v[int_tmp-8]*0x1000000+buffer_v[int_tmp-7]*0x10000+buffer_v[int_tmp-6]*0x100+buffer_v[int_tmp-5];
@@ -237,10 +244,11 @@ int DatManager::FillChipBuffer(vector<int> &buffer_v,int cycleID,int triggerID,i
 	for (int i = 0; i < buffer_v.size(); ++i){
 		//cout<<hex<<buffer_v[i]<<" ";
 	}
+	// what a fuck is this code, why you do like this!
 	for (int i = channel_FEE; i<buffer_v.size(); i=i+channel_FEE){
 		//cout<<dec<<i<<" "<<buffer_v.size()<<" "<<hex<<buffer_v[i]<<endl;
 		if (buffer_v[i]<1 || buffer_v[i]>9) continue;
-		int chip=buffer_v[i]-1;
+		int chip=buffer_v[i]-1; //chipnumber
 		_chip_v[layer_id][chip].assign(buffer_v.begin(),buffer_v.begin()+i+1);
 		buffer_v.erase(buffer_v.begin(),buffer_v.begin()+i+1);
 		//cout<<endl<<dec<<_chip_v[layer_id][chip].back()<<" FillChipBuffer "<<" "<<buffer_v.size()<<endl;
@@ -271,6 +279,20 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 		cout<<"cant open "<<input_file<<endl;
 		return 0;
 	}
+	// // Save the current position in the file
+	// std::streampos original_pos = f_in.tellg();
+	
+	// // Call DataStructureCheck with the original stream
+	// if (DataStructureCheck(f_in) == 0){
+	// 	cout << "Data structure check failed for file: " << input_file << endl;
+	// 	f_in.close();
+	// 	return 0;
+	// }
+	
+	// // Reset the position in the file
+	// f_in.clear(); // Clear any error flags
+	// f_in.seekg(original_pos);
+
 	for (int i_layer = 0; i_layer < Layer_No; ++i_layer){
 		_buffer_v.clear();
 		for (int i_chip = 0; i_chip < chip_No; ++i_chip){
@@ -326,6 +348,9 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 		b_Event=0;
 		b_chipbuffer=Chipbuffer_empty();//just in case
 		// cout <<dec<<Bag_No<<" CatchEventBag size "<<_EventBuffer_v.size()<<" cherenkov_counter "<<cherenkov_counter<<endl;
+		if (_EventBuffer_v.size()<74){
+			cout <<"EventBag size "<<_EventBuffer_v.size()<<" is too small, skip this bag"<<endl;
+		}
 		while(_EventBuffer_v.size()>74){    
 			CatchSPIROCBag(_EventBuffer_v,_buffer_v,layer_id,cycleID,triggerID);
 			// if(triggerID==last_trigID){
@@ -353,6 +378,13 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 			b_chipbuffer=Chipbuffer_empty();                 
 		} 
 		if(b_Event)Abnormal_Event_No++;
+		if (b_chipbuffer==0){
+			// cout<<"Bag doesn't contain any chip buffer "<<dec<<Bag_No<<" "<<_EventBuffer_v.size()<<endl;
+			// for (int i = 0; i < _EventBuffer_v.size(); ++i){
+			// 	cout<<hex<<_EventBuffer_v[i]<<" ";
+			// }
+			// cout<<endl;
+		}
 		while(b_chipbuffer!=0){
 			if((pre_trigID - last_trigID) >10 && last_trigID!=0){
 				cout<<hex<<pre_cycleID<<" Abnormal triggerID "<<pre_trigID<<" "<<last_trigID<<endl;
@@ -399,6 +431,8 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 		}                 
 	}
 	cout<<Abnormal_Event_No<<" cherenkov1 "<<Cherenkov_Event_No1<<" cherenkov2 "<<Cherenkov_Event_No2<<" cherenkov coincidence "<<Cherenkov_Event_No<<" Event No "<<Event_No<<" Bag No  "<<Bag_No<<endl;
+	cout<<"last triggerID "<<last_trigID<<" last cycleID "<<last_cycleID<<" Loop No "<<Loop_No<<endl;
+	cout<<"abnormal Event No "<<Abnormal_Event_No<<endl;
 	f_in.close();
 	tree->Write();
 	fout->Write();
@@ -513,3 +547,334 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 	}*/
 	DatManager::~DatManager()
 	{}
+
+
+	int DatManager::DataStructureCheck(ifstream &f_in){
+	// Check the data structure of the input file
+	// Catch the Run header 
+	//  check 0xbbbb bbbb bbbb bbbb or not 
+	int buffer = 0;
+	for (int i = 0; i < 8; ++i){
+		// Read the first 8 bytes
+		if (!f_in.read((char*)(&buffer),1)){
+			cout << "DataStructureCheck: Failed to read the first byte, file may be empty or corrupted." << endl;
+			return 0;
+		}
+		if ( buffer != 0xbb ){
+			cout << "DataStructureCheck: The data structure is not correct, "
+				 << "the first byte should be 0xbb but got " << hex << buffer << endl;
+			return 0;
+		}
+	}
+	int buffer1 = 0;
+	int buffer2 = 0;
+	if (!f_in.read((char*)(&buffer1),1) || !f_in.read((char*)(&buffer2),1)){
+		cout << "DataStructureCheck: Failed to read the second and third bytes, file may be empty or corrupted." << endl;
+		return 0;
+	}
+	if ( buffer1 != 0xaa || buffer2 != 0xaa ){
+		cout << "DataStructureCheck: The data structure is not correct, "
+			 << "the second and third bytes should be 0xaa but got " << hex << buffer1 << " and " << buffer2 << endl;
+		return 0;
+	}
+	//Event Loop 
+	int num_event_bag = 0;
+	int num_event_header = 0;
+	int num_event_footer = 0;
+	int no_footer = 0;
+	int num_nofooter = 0;
+	while(!f_in.eof()){
+		// Read the event header
+		vector<int> buffer_v;
+		int buffer = 0;
+		while(f_in.read((char*)(&buffer),1) && !no_footer){
+			buffer_v.push_back(buffer);
+			if ( buffer_v.size() >= 4 && 
+			     buffer_v[buffer_v.size()-4] == 0xfb && 
+			     buffer_v[buffer_v.size()-3] == 0xee &&
+			     buffer_v[buffer_v.size()-2] == 0xfb && 
+			     buffer_v[buffer_v.size()-1] == 0xee ){
+					if (buffer_v.size() > 4){
+						cout << "DataStructureCheck: Umbiguous data before event header, ";
+						for (int i = 0; i < buffer_v.size()-4; ++i){
+							cout << hex << buffer_v[i] << " ";
+						}
+						cout << endl;
+					}
+					buffer_v.erase(buffer_v.begin(), buffer_v.end()-4);
+					num_event_header++;
+					break; // Found the event header
+			}
+			if (f_in.eof()){
+				cout << "DataStructureCheck: Reached end of file while reading event header." << endl;
+				return 0; // End of file reached
+			}
+		}
+		no_footer = 0; // Reset no_footer for the next event
+		// seek the event footer
+		while(f_in.read((char*)(&buffer),1)){
+			buffer_v.push_back(buffer);
+			if ( buffer_v.size() >= 4 && 
+			     buffer_v[buffer_v.size()-4] == 0xfe &&
+				 buffer_v[buffer_v.size()-3] == 0xdd &&
+				 buffer_v[buffer_v.size()-2] == 0xfe &&
+				 buffer_v[buffer_v.size()-1] == 0xdd ){
+				num_event_footer++;
+				break; // Found the event footer
+			}
+			if (buffer_v.size() >= 4 && 
+			     buffer_v[buffer_v.size()-4] == 0xfb && 
+			     buffer_v[buffer_v.size()-3] == 0xee &&
+			     buffer_v[buffer_v.size()-2] == 0xfb && 
+			     buffer_v[buffer_v.size()-1] == 0xee ){
+				cout << "DataStructureCheck: event footer is found before event header, "
+					 << "found event header at position " << buffer_v.size() - 4 << endl;
+					 buffer_v.erase(buffer_v.end()-4, buffer_v.end());
+					 no_footer = 1;
+					 num_nofooter++;
+				break; // Found the event header again, no footer found
+				 }
+			if (f_in.eof()){
+				cout << "DataStructureCheck: Reached end of file while reading event footer." << endl;
+				return 0; // End of file reached
+			}
+		}
+		num_event_bag++;
+		// if (num_event_header != num_event_footer){
+		// 	cout << "DataStructureCheck: Mismatch in event header and footer counts, "
+		// 		 << "found " << num_event_header << " headers and " << num_event_footer << " footers." << endl;
+		// 	return 0; // Mismatch found
+		// }
+		if (buffer_v.size() < 8){
+			cout << "DataStructureCheck: Event bag size is too small, expected at least 8 bytes but got " 
+				 << buffer_v.size() << " bytes." << endl;
+			return 0; // Event bag size is too small
+		}
+		//erase the event header and footer from the buffer vector
+		buffer_v.erase(buffer_v.begin(), buffer_v.begin()+4); // Remove header
+		buffer_v.erase(buffer_v.end()-4, buffer_v.end()); // Remove footer
+		// Read the event data inside the buffer vector
+		// Check how many chip bag inside the event bag
+		int chip_bag_count = 0;
+		int chip_header_count = 0;
+		int chip_footer_count = 0;
+		// vector< vector <int> > chip_bags;
+		bool b_chip_hit[Layer_No][chip_No];
+		int chip_trigger_ID = -1;
+		for (int i_layer = 0; i_layer < Layer_No; ++i_layer){
+			for (int i_chip = 0; i_chip < chip_No; ++i_chip){
+				b_chip_hit[i_layer][i_chip] = false;
+			}
+		}
+		while (buffer_v.size() > 4) {
+			// Check for chip bag header
+			vector<int> chip_bag = {};
+			int layer_id = -1;
+			int chip_id = -1;
+			int trigger_id = -1;
+			int cycle_id = -1;
+			if (buffer_v.size() < 4){
+				cout << "DataStructureCheck: Not enough data for a chip bag header." << endl;
+				return 0; // Not enough data for a chip bag header
+			}
+			int istart = 0;
+			for (int i = 0; i < buffer_v.size()-4; ++i){
+				if (buffer_v[i] == 0xfa && buffer_v[i+1] == 0x5a && 
+				    buffer_v[i+2] == 0xfa && buffer_v[i+3] == 0x5a){
+					chip_header_count++;
+					istart = i;
+					break; // Found the chip bag header
+					// buffer_v.erase(buffer_v.begin(), buffer_v.begin()+4); // Remove header
+				}
+			}
+			if (istart != 0){
+				cout << "DataStructureCheck: Chip bag header found at position " 
+					 << istart << ", but there is some data before it: ";
+				for (int i = 0; i < istart; ++i){
+					cout << hex << buffer_v[i] << " ";
+				}
+				cout << endl;
+				// return 0; // Chip bag header not found
+			}
+			buffer_v.erase(buffer_v.begin(), buffer_v.begin()+istart); // Remove some errr
+			// Check for chip bag footer
+			int tag = 0;
+			for (int i = 0; i < buffer_v.size(); ++i){
+				if (buffer_v[i] == 0xfe && buffer_v[i+1] == 0xee &&
+					buffer_v[i+2] == 0xfe && buffer_v[i+3] == 0xee){
+						chip_footer_count++;
+						chip_bag.assign(buffer_v.begin(), buffer_v.begin()+i+4+ 2); // Include footer+ 2 bytes layer information
+						buffer_v.erase(buffer_v.begin(), buffer_v.begin()+i+4+2); // Remove footer and layer information
+						chip_bag_count++;
+						break; // Found the chip bag footer
+				}else if (i == buffer_v.size() - 1 -4 ){
+					cout << "DataStructureCheck: Chip bag footer not found, found " 
+						 << hex << buffer_v[i] << endl;
+					tag = 1; // Chip bag footer not found
+						 // return 0; // Chip bag footer not found
+				}
+			}
+			if (tag == 1){
+				cout << "DataStructureCheck: Chip bag footer not found, but there is some data left: ";
+				for (int i = 0; i < buffer_v.size(); ++i){
+					cout << hex << buffer_v[i] << " ";
+				}
+				cout << endl;
+				break; // Chip bag footer not found, break the loop
+			}
+			// Check the chip bag
+			// if (chip_bag.size() < 10){
+			// 	cout << "DataStructureCheck: Chip bag size is too small, expected at least 10 bytes but got " 
+			// 		 << chip_bag.size() << " bytes." << endl;
+			// 	return 0; // Chip bag size is too small
+			// }
+			if (chip_bag[chip_bag.size()-2] != 0xff || 
+				chip_bag[chip_bag.size()-1] < 0 || chip_bag[chip_bag.size()-1] > 39){
+				cout << "DataStructureCheck: Chip bag layer ID is invalid, found " 
+					 << hex << chip_bag[chip_bag.size()-2] << " and " 
+					 << chip_bag[chip_bag.size()-1] << endl;
+				return 0; // Chip bag layer ID is invalid
+			}
+			layer_id = chip_bag[chip_bag.size()-1]; // Get layer ID
+			chip_bag.erase(chip_bag.end()-2, chip_bag.end()); // Remove layer ID from the chip bag
+			// chip_bag.erase(chip_bag.begin(), chip_bag.begin()+4); // Remove chip bag header
+			// chip_bag.erase(chip_bag.end()-4, chip_bag.end()); // Remove chip bag footer
+			// Check the chip bag data
+			if (chip_bag.size() % 2 != 0){
+				cout << "DataStructureCheck: Chip bag size is not even, found " 
+					 << chip_bag.size() << " bytes." << endl;
+				return 0; // Chip bag size is not even
+			}
+			// if (chip_bag.size() < 74){
+			// 	cout << "DataStructureCheck: Chip bag size is too small, expected at least 74 bytes but got " 
+			// 		 << chip_bag.size() << " bytes." << endl;
+			// 	cout << "Chip bag data: ";
+			// 	for (int i = 0; i < chip_bag.size(); ++i){
+			// 		cout << hex << chip_bag[i] << " ";
+			// 	}
+			// 	cout << endl;
+			// 	// return 0; // Chip bag size is too small
+			// }
+			// Decode the chip bag data 4 bytes to 8 bytes in a integer
+			for (int i = 0; i < chip_bag.size()/2; ++i){
+				chip_bag[i] = chip_bag[2*i]*0x100 + chip_bag[2*i+1];
+			}
+			chip_bag.erase(chip_bag.begin()+chip_bag.size()/2, chip_bag.end()); // Remove the second half of the chip bag data
+			if (chip_bag.size() < 5){
+				cout << "DataStructureCheck: Chip bag size is too small after decoding, expected at least 5 bytes but got " 
+					 << chip_bag.size() << " bytes." << endl;
+				return 0; // Chip bag size is too small after decoding
+			}
+			cycle_id = chip_bag[2]*0x10000 + chip_bag[3]; // Get cycle ID
+			trigger_id = chip_bag[4]; // Get trigger ID	
+			int error = 0;
+			if ( chip_trigger_ID == -1 ){
+				chip_trigger_ID = trigger_id; // Set the chip trigger ID
+			} else if ( chip_trigger_ID != trigger_id ){
+				cout << "DataStructureCheck: Chip trigger ID mismatch, found " 
+					 << chip_trigger_ID << " but got " << trigger_id << endl;
+				error = 1; // Chip trigger ID mismatch
+				// return 0; // Chip trigger ID mismatch
+			}
+
+			chip_bag.erase(chip_bag.begin()+2, chip_bag.begin()+5); // Remove cycle ID and trigger ID from the chip bag
+			chip_bag.erase(chip_bag.begin(), chip_bag.begin()+2); // Remove chip bag header
+			chip_bag.erase(chip_bag.end()-2, chip_bag.end()); // Remove chip bag footer
+			// if (chip_bag.size() < 72){
+			// 	cout << "DataStructureCheck: Chip bag size is too small after removing cycle ID and trigger ID, expected at least 72 bytes but got " 
+			// 		 << chip_bag.size() << " bytes." << endl;
+			// 	return 0; // Chip bag size is too small after removing cycle ID and trigger ID
+			// }
+			// // Check if the chip bag is valid
+			// if (chip_bag.size() == 0){
+			// 	cout << "DataStructureCheck: Chip bag scientific data is empty, "
+			// 		 << "expected at least 73 bytes but got 0 bytes." << endl;
+			// 	cout << " trigger ID: " << trigger_id 
+			// 		 << ", cycle ID: " << cycle_id 
+			// 		 << ", layer ID: " << layer_id << endl;
+			// 	// error = 1; // Chip bag size is too small for a chip
+			// }
+			while (chip_bag.size() > 0){
+				if (chip_bag.size() < channel_FEE + 1){
+					cout << "DataStructureCheck: Chip bag size is too small for a chip, expected at least " 
+						 << channel_FEE + 1 << " bytes but got " << chip_bag.size() << " bytes." << endl;
+					error = 1; // Chip bag size is too small for a chip
+					cout << "Chip bag data: ";
+					for (int i = 0; i < chip_bag.size(); ++i){
+						cout << hex << chip_bag[i] << " ";
+					}
+					cout << endl;
+					break; // Skip this chip bag if there is an error
+				}
+				if (chip_bag[channel_FEE] < 1 || chip_bag[channel_FEE] > 9){
+					cout << "DataStructureCheck: Invalid chip number found, expected between 1 and 9 but got " 
+						 << chip_bag[channel_FEE] << endl;
+						 cout << "Chip bag size: " << chip_bag.size() << endl;
+					error = 1; // Invalid chip number found
+					cout << "Chip bag data: ";
+					for (int i = 0; i < chip_bag.size(); ++i){
+						cout << hex << chip_bag[i] << " ";
+					}
+					cout << endl;
+					break; // Skip this chip bag if there is an error
+				}
+				chip_id = chip_bag[channel_FEE] - 1; // Get chip ID
+				// Event decoding
+				chip_bag.erase(chip_bag.begin(), chip_bag.begin()+channel_FEE+1); // Remove chip number and gain tag
+				if (b_chip_hit[layer_id][chip_id]){
+					cout << "DataStructureCheck: Found a hit in layer " << layer_id 
+						 << ", chip " << chip_id << endl;
+				}
+				b_chip_hit[layer_id][chip_id] = true; // Mark the chip as hit
+			}
+			// vector clear
+			chip_bag.clear();
+			if (error){
+				cout << "DataStructureCheck: Error found in chip bag, skipping this bag." << endl;
+				// continue; // Skip this chip bag if there is an error
+			}
+		}
+		if (chip_bag_count == 0){
+			cout << "DataStructureCheck: No chip bags found in the event bag." << endl;
+			return 0; // No chip bags found in the event bag
+		}
+		// if (chip_header_count != chip_footer_count){
+		// 	cout << "DataStructureCheck: Mismatch in chip header and footer counts, "
+		// 		 << "found " << chip_header_count << " headers and " << chip_footer_count << " footers." << endl;
+		// 	return 0; // Mismatch found
+		// }
+		bool hit = false;
+		for (int i_layer = 0; i_layer < Layer_No; ++i_layer){
+			for (int i_chip = 0; i_chip < chip_No; ++i_chip){
+				if (b_chip_hit[i_layer][i_chip]){
+					hit = true;
+					break; // Found a hit in the chip bag
+				}
+			}
+			if (hit) break; // Found a hit in the chip bag
+		}
+		if (!hit){
+			cout << "DataStructureCheck: No hits found in the event bags." << endl;
+			// return 0; // No hits found in the chip bags
+		}
+		if (num_event_bag % 1000 == 0){
+			cout << "DataStructureCheck: Processed " << num_event_bag 
+				 << " event bags, found " << chip_bag_count 
+				 << " chip bags with " << chip_header_count 
+				 << " headers and " << chip_footer_count 
+				 << " footers." << endl;
+		}
+		// cherenkov signal check
+		int_tmp=buffer_v.size();
+		int cherenkov_counter=buffer_v[int_tmp-4]*0x1000000+buffer_v[int_tmp-3]*0x10000+buffer_v[int_tmp-2]*0x100+buffer_v[int_tmp-1];
+		// if(f_in.eof())return 0;
+		cout << "DataStructureCheck: Processed event bag with " 
+			 << chip_bag_count << " chip bags, "
+			 << "cherenkov counter: " << cherenkov_counter << endl;
+		buffer_v.clear();
+	} 
+	cout << "DataStructureCheck: Successfully checked the data structure of the input file." << endl;
+	return 1; // Successfully checked the data structure of the input file
+	}
+		
+

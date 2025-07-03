@@ -1,1 +1,2 @@
-/eos/user/s/shunlian/AHCAL/data/LongRun/run26/AHCAL_Run26_20250521_204627.dat
+/eos/user/s/shunlian/AHCAL/data/LongRun/AHCAL_Run93_20250703_182608.dat
+

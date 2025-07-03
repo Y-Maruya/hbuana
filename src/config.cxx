@@ -2,6 +2,7 @@
 #include "DatManager.h"
 #include "DacManager.h"
 #include "PedestalManager.h"
+#include "DataQualityChecker.h"
 #include <fstream>
 
 using namespace std;
@@ -16,6 +17,40 @@ void Config::Parse(const string config_file)
 
 int Config::Run()
 {
+	if(conf["DataQualityCheck"]["on-off"].as<bool>())
+	{
+		cout<<"Data Quality Check mode: ON"<<endl;
+		if(conf["DataQualityCheck"]["file-list"].as<std::string>()=="")
+		{
+			cout<<"ERROR: Please specify file list for data quality check"<<endl;
+			return 0;
+		}
+		else
+		{
+			ifstream file_list(conf["DataQualityCheck"]["file-list"].as<std::string>());
+			if(!file_list.is_open())
+			{
+				cout<<"ERROR: Cannot open file list "<<conf["DataQualityCheck"]["file-list"].as<std::string>()<<endl;
+				return 0;
+			}
+			while(!file_list.eof())
+			{
+				string file_temp;
+				file_list >> file_temp;
+				if(file_temp=="")continue;
+				cout<<"Analyzing file: "<<file_temp<<endl;
+				DataQualityChecker dqchecker;
+				dqchecker.AnalyzeFile(file_temp);
+				dqchecker.PrintSummary();
+				std::string filename = file_temp.substr(file_temp.find_last_of('/') + 1);
+				filename = filename.substr(0, filename.find_last_of('.'));
+				std::string outputfilename = conf["DataQualityCheck"]["output-dir"].as<std::string>() + "/" + filename + "_data_quality_report.txt";
+				dqchecker.WriteReport(outputfilename);
+				cout<<"Report written to: "<<outputfilename<<endl;
+				// dqchecker.Clear(); // Clear the checker for the next file
+			}
+		}
+	}
 	if(conf["DAT-ROOT"]["on-off"].as<bool>())
 	{
 		cout<<"DAT mode: ON"<<endl;

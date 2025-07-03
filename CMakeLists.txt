@@ -33,7 +33,7 @@ include(${ROOT_USE_FILE})
 add_library(HBase STATIC src/HBase.cxx) 
 
 #add executable
-add_executable(hbuana src/main.cxx src/DatManager.cxx src/PedestalManager.cxx src/DacManager.cxx src/config.cxx)
+add_executable(hbuana src/main.cxx src/DatManager.cxx src/PedestalManager.cxx src/DacManager.cxx src/config.cxx src/DataQualityChecker.cxx)
 #link libraries
 target_link_libraries(hbuana ${ROOT_LIBRARIES} yaml-cpp HBase Spectrum)
 

@@ -58,6 +58,7 @@ public:
     		return b_chipbuffer;
 	}
 	int FillChipBuffer(vector<int> &buffer_v,int cycleID,int triggerID,int layer_id);
+	int DataStructureCheck(ifstream &f_in);
 };
 
 #endif

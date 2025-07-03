@@ -1,0 +1,19 @@
+# HTCondor submit description file for hbuana
+
+universe = vanilla
+executable = /eos/user/y/ymaruya/FASER/hbuana/bin/hbuana
+arguments = -c /eos/user/y/ymaruya/FASER/hbuana/config/config.yaml
+
+# Output, error, and log files
+output = hbuana_$(Cluster).$(Process).out
+error = hbuana_$(Cluster).$(Process).err
+log = hbuana_$(Cluster).$(Process).log
+
+# Environment settings
+getenv = True
+
+# CERN-specific attributes
++JobFlavour = "workday"
+
+# Queue the job
+queue 1

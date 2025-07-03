@@ -3,6 +3,12 @@ hbuana:
         version: 1.0
         github: git@github.com:wangz1996/cepc_hbuana.git
 
+DataQualityCheck:
+        on-off: False
+        auto-gain: False
+        cherenkov: False
+        file-list: list_cosmic.txt
+        output-dir: /eos/user/y/ymaruya/FASER/AHCAL-data/
 
 #Dat file to ROOT Decoder
 DAT-ROOT:
