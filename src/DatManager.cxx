@@ -324,7 +324,7 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 		Bag_No++;
 		b_Event=0;
 		b_chipbuffer=Chipbuffer_empty();//just in case
-		cout <<dec<<Bag_No<<" CatchEventBag size "<<_EventBuffer_v.size()<<" cherenkov_counter "<<cherenkov_counter<<endl;
+		// cout <<dec<<Bag_No<<" CatchEventBag size "<<_EventBuffer_v.size()<<" cherenkov_counter "<<cherenkov_counter<<endl;
 		while(_EventBuffer_v.size()>74){    
 			CatchSPIROCBag(_EventBuffer_v,_buffer_v,layer_id,cycleID,triggerID);
 			// if(triggerID==last_trigID){
