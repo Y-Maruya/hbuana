@@ -1,9 +1,26 @@
 #include "DatManager.h"
 #include "Global.h"
+#include "TH1D.h"
 using namespace std;
 extern char char_tmp[200];
 int int_tmp=0;
 int flag=0;
+double GetMinXWithContent(TH1* h) {
+    for (int i = 1; i <= h->GetNbinsX(); ++i) {
+        if (h->GetBinContent(i) > 0) {
+            return h->GetBinLowEdge(i);  // または h->GetBinCenter(i)
+        }
+    }
+    return -999; // 内容がない場合など
+}
+double GetMaxXWithContent(TH1* h) {
+    for (int i = h->GetNbinsX(); i >= 1; --i) {
+        if (h->GetBinContent(i) > 0) {
+            return h->GetBinLowEdge(i) + h->GetBinWidth(i);  // または h->GetBinCenter(i)
+        }
+    }
+    return -999; // 内容がない場合など
+}
 int DatManager::CatchEventBag(ifstream &f_in, vector<int> &buffer_v, long &cherenkov_counter){
 	//cout<<"catch a bag"<<endl;
 	bool b_begin=0;
@@ -47,8 +64,8 @@ int DatManager::CatchEventBag(ifstream &f_in, vector<int> &buffer_v, long &chere
 
 	if (b_end==0){
 		cout<<"CatchEventBag:abnormal end "<<endl;
-		// buffer_v.clear();
-		// return 0;
+		buffer_v.clear();
+		return 0;
 	}
 	int_tmp=buffer_v.size();
 	cherenkov_counter=buffer_v[int_tmp-8]*0x1000000+buffer_v[int_tmp-7]*0x10000+buffer_v[int_tmp-6]*0x100+buffer_v[int_tmp-5];
@@ -337,7 +354,12 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 	bool b_ReadOver=1;
 	bool b_chipbuffer=0;
 	bool b_Event=0;
+	int b_skip=0;
 	cout<<" Start Read "<<str_out<<" auto gain: "<<b_auto_gain<<" cherenkov: "<<b_cherenkov<<" Run:"<<_Run_No<<endl;
+	TH1D *h_triggerID_withoutnohit = new TH1D("h_triggerID_withoutnohit", "TriggerID without no hit", 1e7, 0, 1e7);
+	TH1D *h_triggerID_withnohit = new TH1D("h_triggerID_withnohit", "TriggerID with no hit", 1e7, 0, 1e7);
+	TH1D *h_missing_triggerID_withnohit = new TH1D("h_missing_triggerID_withnohit", "Missing TriggerID with no hit", 1e7, 0, 1e7);
+	TH1D *h_missing_triggerID_withoutnohit = new TH1D("h_missing_triggerID_withoutnohit", "Missing TriggerID without no hit", 1e7, 0, 1e7); 
 	while(!(f_in.eof()) || b_chipbuffer){
 		//while((!(f_in.eof()) || b_chipbuffer) && Event_No<=1E4){
 		if(Event_No%1000==0)cout<<"Event_No: "<<Event_No<<" Bag_No "<<Bag_No<<endl;
@@ -379,13 +401,29 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 		} 
 		if(b_Event)Abnormal_Event_No++;
 		if (b_chipbuffer==0){
-			// cout<<"Bag doesn't contain any chip buffer "<<dec<<Bag_No<<" "<<_EventBuffer_v.size()<<endl;
+			cout<<"Bag doesn't contain any chip buffer "<<dec<<Bag_No<<" "<<_EventBuffer_v.size()<<endl;
+			b_skip++;
 			// for (int i = 0; i < _EventBuffer_v.size(); ++i){
 			// 	cout<<hex<<_EventBuffer_v[i]<<" ";
 			// }
 			// cout<<endl;
+			h_triggerID_withnohit->Fill(pre_trigID);
+			if (pre_trigID!=last_trigID+1){
+				for (long i = last_trigID+1; i < pre_trigID; ++i){
+					h_missing_triggerID_withnohit->Fill(i);
+					h_missing_triggerID_withoutnohit->Fill(i);
+				}
+			}
 		}
 		while(b_chipbuffer!=0){
+			h_triggerID_withnohit->Fill(pre_trigID);
+			h_triggerID_withoutnohit->Fill(pre_trigID);
+			if(pre_trigID!=last_trigID+1){
+				for (long i = last_trigID+1; i < pre_trigID; ++i){
+					h_missing_triggerID_withnohit->Fill(i);
+					h_missing_triggerID_withoutnohit->Fill(i);
+				}
+			}
 			if((pre_trigID - last_trigID) >10 && last_trigID!=0){
 				cout<<hex<<pre_cycleID<<" Abnormal triggerID "<<pre_trigID<<" "<<last_trigID<<endl;
 			}
@@ -430,9 +468,17 @@ int DatManager::Decode(const string& input_file,const string& output_file,const 
 			last_Event_Time=_Event_Time;
 		}                 
 	}
+	int min_triggerID = min(GetMinXWithContent(h_triggerID_withoutnohit), GetMinXWithContent(h_triggerID_withnohit));
+	int max_triggerID = max(GetMaxXWithContent(h_triggerID_withoutnohit), GetMaxXWithContent(h_triggerID_withnohit));
 	cout<<Abnormal_Event_No<<" cherenkov1 "<<Cherenkov_Event_No1<<" cherenkov2 "<<Cherenkov_Event_No2<<" cherenkov coincidence "<<Cherenkov_Event_No<<" Event No "<<Event_No<<" Bag No  "<<Bag_No<<endl;
 	cout<<"last triggerID "<<last_trigID<<" last cycleID "<<last_cycleID<<" Loop No "<<Loop_No<<endl;
+	cout<<"last Event Time "<<last_Event_Time<<endl;
 	cout<<"abnormal Event No "<<Abnormal_Event_No<<endl;
+	cout<<"skipped Event No"<<" "<<b_skip<<endl;
+	h_triggerID_withoutnohit->GetXaxis()->SetRangeUser(min_triggerID, max_triggerID);
+	h_triggerID_withnohit->GetXaxis()->SetRangeUser(min_triggerID, max_triggerID);
+	h_missing_triggerID_withnohit->GetXaxis()->SetRangeUser(min_triggerID, max_triggerID);
+	h_missing_triggerID_withoutnohit->GetXaxis()->SetRangeUser(min_triggerID, max_triggerID);
 	f_in.close();
 	tree->Write();
 	fout->Write();
